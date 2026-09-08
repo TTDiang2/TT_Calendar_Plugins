@@ -3,6 +3,8 @@
 [TT Calendar](https://github.com/TTDiang2/TT_Calendar) (v2.3+) 社区插件仓库。想订阅什么日历，就装什么日历——把 `.py` 文件丢进 `plugins/`，重启即用。
 
 > **主仓库**（应用程序本体）的官方构建包**不附带**这些插件。从这个仓库下载，放入 `plugins/` 目录，重启即可。
+>
+> 🇺🇸 [English README](README.md)
 
 ---
 

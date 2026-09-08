@@ -3,6 +3,8 @@
 Community plugins for [TT Calendar](https://github.com/TTDiang2/TT_Calendar) (v2.3+). Subscribe to any calendar you want — drop a `.py` into `plugins/` and restart.
 
 > **Main repo** (the application) does NOT ship these plugins in its official binaries. Download them from this repo, drop them into your `plugins/` folder, restart, and you're done.
+>
+> 🇨🇳 [中文版 README](README.zh-CN.md)
 
 ---
 
