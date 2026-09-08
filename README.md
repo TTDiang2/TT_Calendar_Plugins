@@ -1,89 +1,84 @@
-# 🧩 TT_Calendar Plugins
+# 🧩 TT Calendar Subscription Plugins
 
-**TT Calendar 订阅插件仓库** — 想订阅什么日历，就装什么日历。
+Community plugins for [TT Calendar](https://github.com/TTDiang2/TT_Calendar) (v2.3+). Subscribe to any calendar you want — drop a `.py` into `plugins/` and restart.
 
-> Community plugin repository for [TT Calendar](https://github.com/TTDiang2/TT_Calendar) (v2.3+).
-> Each plugin is a single `.py` file: download → drop into `plugins/` → restart.
+> **Main repo** (the application) does NOT ship these plugins in its official binaries. Download them from this repo, drop them into your `plugins/` folder, restart, and you're done.
 
 ---
 
-## 📦 收录插件
+## 📦 Available Plugins
 
-| 插件文件 | 数据源 | 说明 | 需要凭据 |
+| Plugin | Data Source | Description | Credentials |
 |---|---|---|---|
-| [`investing.py`](investing.py) | 英为财情（investing.com）经济日历 | 美/中/日/欧等 16 国经济指标：时间 · 货币 · 重要性 · 今值/预测值/前值 · vs 预期；按国家分图层 | ✅ Cloudflare cookie（见下） |
-| [`jisilu.py`](jisilu.py) | 集思录投资日历 | 新股 / 可转债 / 分红 / REITs / 股指期货期权等 15 类事件，按类型分图层 | ❌ 无需 |
+| [`investing.py`](investing.py) | [investing.com](https://www.investing.com) Economic Calendar | 16 country layers of macro indicators: time · currency · importance · actual/forecast/previous · vs expectation badges. Organised by country. | ✅ Cloudflare cookie required (see below) |
+| [`jisilu.py`](jisilu.py) | Jisilu Investment Calendar | 15 event types — IPOs, convertible bonds, dividends, REITs, stock index futures/options, etc. Organised by event type. | ❌ None needed |
 
-## ⚙️ 安装
+## ⚙️ Installation
 
-1. **下载插件文件**：点上面的文件名，再点页面右侧 **Download raw file**（或 `git clone` 本仓库后复制）
-2. **放进 TT Calendar 的插件目录**：
+1. **Download the plugin file**: Click the filename above, then click **Download raw file** on the right (or `git clone` this repo and copy the `.py` files)
+2. **Drop into TT Calendar's plugins folder**:
 
-   - **源码版**：`TT_Calendar/plugins/` 文件夹
-   - **打包版（3 个 exe）**：在 exe 旁边新建 `plugins/` 文件夹
+   - **Source build**: `TT_Calendar/plugins/` directory
+   - **Packaged build (3 exes)**: Create a `plugins/` folder next to the exe
 
-3. **重启应用** —— 完成。侧边栏会出现插件对应的图层分组，订阅面板可添加数据源。
+3. **Restart the app** — that's it. The sidebar will show plugin-managed layer groups, and the subscription panel can add the new sources.
 
-> 装多个插件就把多个 `.py` 都放进去；卸载 = 删除文件。
+> Multiple plugins? Put all `.py` files in `plugins/`. Uninstall = delete the file.
 
-## 📖 使用方法
+## 📖 Usage
 
-### 添加订阅
+### Adding a Subscription
 
-1. 打开应用 → 侧边栏底部/顶栏打开 **订阅** 面板
-2. 点 **+ 新增订阅**，选择已安装的插件源（如「英为财情-投资日历」），保存
-3. 点该订阅卡片的 **「立即更新」**（或重启应用自动刷新）→ 事件写入对应图层
+1. Open the app → open the **Subscription** panel in the sidebar (bottom or top, depending on theme)
+2. Click **+ Add Subscription**, pick an installed source (e.g. "Investing.com – Economic Calendar"), save
+3. Click **Update Now** on that subscription card (or restart the app to auto-refresh) → events are written to their respective layers
 
-### 图层开关
+### Layer Switching
 
-侧边栏按分组显示各插件的图层，**勾选 = 显示并写入**，不勾选的图层不落库：
+Layers are grouped by plugin in the sidebar. **Checked = shown and written**; unchecked layers skip the database entirely:
 
-- `英为财情·美国 / 中国 / 日本 / 欧元区 …`（investing 按国家分 16 图层 + 「其他」兜底图层）
-- `集思录·新股上市 / 可转债 / A股分红 …`（jisilu 按类型分 15 图层）
+- `Investing · US / China / Japan / Eurozone …` (16 country layers + "Other" catch-all)
+- `Jisilu · IPOs / Convertible Bonds / A-Share Dividends …` (15 type-based layers)
 
-### 事件详情
+### Event Details
 
-点击日期 → 右侧详情面板：事件卡片会显示插件声明的字段
-（如英为财情的 时间 · 货币 · 统计周期 · 重要性星级 + 今值/预测值/前值 + vs 预期徽标）——
-字段展示由插件声明，应用自动渲染，无需装额外前端组件。
+Click a date → the detail panel shows fields declared by the plugin (e.g. Investing's time · currency · stat period · importance stars + actual/forecast/previous values + vs-expectation badges). Field rendering is handled by the app automatically — no frontend component to install.
 
-### investing 插件：CF cookie（仅此插件需要）
+### investing plugin: Cloudflare cookie (the only one that needs it)
 
-英为财情被 Cloudflare 保护，普通请求会被拦截。首次使用需：
+investing.com is behind Cloudflare protection; plain requests get blocked. On first use:
 
-1. 用 **Edge 浏览器** 打开 https://cn.investing.com/economic-calendar ，通过人机验证
-2. `F12` → Application → Cookies → 选中 `cn.investing.com`，全选复制为 JSON
-3. 保存到 `data/investing_cookies.json`（应用数据目录；打包版在 exe 旁 `data/` 文件夹，没有就建一个）：
+1. Open https://cn.investing.com/economic-calendar in **Edge** and pass the CAPTCHA
+2. Press `F12` → Application → Cookies → select `cn.investing.com`, select all, copy as JSON
+3. Save to `data/investing_cookies.json` (the app data dir; for the packaged build, put it next to the exe in a `data/` folder)
 
    ```json
    { "cf_clearance": "…", "__cf_bm": "…" }
    ```
 
-4. 回应用点「立即更新」—— 之后 cookie 过期（约半天~1 天）只需重新导出一次
+4. Go back to the app and click "Update Now" — when the cookie expires (~half a day to a day), just re-export it
 
-## 🧪 测试
+## 🧪 Tests
 
-插件测试设计为在 **TT Calendar 源码目录**下运行（依赖 `tt_calendar` 包）：
+Plugin tests run inside the **TT Calendar source tree** (they depend on the `tt_calendar` package):
 
 ```bash
-# 在 TT_Calendar 项目根目录
+# From the TT_Calendar project root
 python -m pytest ../TT_Calendar_Plugins/tests -q
 ```
 
-- `tests/test_investing_source.py`：investing 解析器单元测试（真实抓包样本，不发真实 HTTP）
+- `tests/test_investing_source.py` — investing parser unit tests (uses real network-scraped fixtures, no live HTTP)
 
-## 🤝 贡献插件
+## 🤝 Contribute a Plugin
 
-写了一个新插件？欢迎分享：
+Wrote a new subscription plugin? Share it with the community:
 
-1. 在 `plugins/` 放好你的 `.py`（协议见 TT_Calendar 仓库
-   [docs/SUBSCRIPTION_PLUGIN_GUIDE.md](https://github.com/TTDiang2/TT_Calendar/blob/main/docs/SUBSCRIPTION_PLUGIN_GUIDE.md)）
-2. 给本仓库提 PR：插件文件放根目录，命名 `source_id.py`
-3. 在下方「收录插件」表补一行，README 里说明安装与凭据要求
+1. Place your `.py` in a local `plugins/` directory first (protocol docs: [docs/SUBSCRIPTION_PLUGIN_GUIDE.md](https://github.com/TTDiang2/TT_Calendar/blob/main/docs/SUBSCRIPTION_PLUGIN_GUIDE.md))
+2. Open a PR to this repo: place the plugin file at the repo root, named `source_id.py`
+3. Add a row to the table above, with installation notes and credential requirements
 
-**协议速览**：`Source` 子类需实现 `source_id / display_name / layer_specs() / fetch(start, end)`，
-可选 `field_specs()`（事件字段 UI 规格）与 `refresh_past_days / refresh_future_days`（刷新窗口）。
+**Protocol quick reference**: a `Source` subclass must implement `source_id / display_name / layer_specs() / fetch(start, end)`. Optional hooks: `field_specs()` (event field UI spec) and `refresh_past_days / refresh_future_days` (refresh window).
 
 ---
 
-TT Calendar 主仓库：[TTDiang2/TT_Calendar](https://github.com/TTDiang2/TT_Calendar) · License: MIT
+TT Calendar main repo: [TTDiang2/TT_Calendar](https://github.com/TTDiang2/TT_Calendar) · License: MIT
