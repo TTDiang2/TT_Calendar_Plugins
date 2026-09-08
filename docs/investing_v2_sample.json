@@ -1,0 +1,25 @@
+{
+  "events": [
+    {"category": "economic_activity", "country_id": 35, "currency": "JPY", "event_id": 191, "event_translated": "日本领先指标", "importance": "low", "short_name": "日本领先指标"},
+    {"category": "employment", "country_id": 25, "currency": "AUD", "event_id": 385, "event_translated": "澳大利亚季调后ANZ总招聘广告月率(%) (月度环比)", "importance": "low", "short_name": "澳大利亚季调后ANZ总招聘广告月率(%)"},
+    {"category": "balance", "country_id": 37, "currency": "CNY", "event_id": 866, "event_translated": "中国外汇储备(美元)", "importance": "medium", "short_name": "中国外汇储备(美元)"},
+    {"category": "balance", "country_id": 35, "currency": "JPY", "event_id": 1004, "event_translated": "日本外汇储备(美元)", "importance": "low", "short_name": "日本外汇储备(美元)"},
+    {"category": "central_banks", "country_id": 42, "currency": "MYR", "event_id": 1107, "event_translated": "马来西亚外汇储备(美元)", "importance": "low", "short_name": "马来西亚外汇储备(美元)"},
+    {"category": "balance", "country_id": 39, "currency": "HKD", "event_id": 1327, "event_translated": "香港外汇储备(美元)", "importance": "low", "short_name": "香港外汇储备(美元)"},
+    {"category": "balance", "country_id": 110, "currency": "ZAR", "event_id": 1328, "event_translated": "南非外汇储备(美元)", "importance": "low", "short_name": "南非外汇储备(美元)"},
+    {"category": "economic_activity", "country_id": 35, "currency": "JPY", "event_id": 1441, "event_translated": "日本同步指标月率(%) (月度环比)", "importance": "low", "short_name": "日本同步指标月率(%)"},
+    {"category": "economic_activity", "country_id": 35, "currency": "JPY", "event_id": 1582, "event_translated": "日本领先指标月率(%) (月度环比)", "importance": "low", "short_name": "日本领先指标月率(%)"}
+  ],
+  "next_page_cursor": "eyJ0aW1lIjoiMjAyNi0wOS0wN1QwODozMDowMFoiLCJpZCI6NTU2MjIxfQ==",
+  "occurrences": [
+    {"actual": 1207.5, "actual_to_forecast": "neutral", "event_id": 1004, "occurrence_id": 556231, "occurrence_time": "2026-09-06T23:50:00Z", "precision": 1, "preliminary": false, "previous": 1287.1, "reference_period": "八月", "unit": "B"},
+    {"actual": 2.5, "actual_to_forecast": "neutral", "event_id": 385, "occurrence_id": 556521, "occurrence_time": "2026-09-07T01:30:00Z", "precision": 1, "preliminary": false, "previous": 1.9, "reference_period": "八月", "unit": "%"},
+    {"actual": 1.7, "actual_to_forecast": "neutral", "event_id": 1441, "occurrence_id": 556211, "occurrence_time": "2026-09-07T05:00:00Z", "precision": 1, "preliminary": true, "previous": 0.6, "reference_period": "七月", "unit": "%"},
+    {"actual": 1.7, "actual_to_forecast": "neutral", "event_id": 1582, "occurrence_id": 556212, "occurrence_time": "2026-09-07T05:00:00Z", "precision": 1, "preliminary": true, "previous": 0, "reference_period": "七月", "unit": "%"},
+    {"actual": 118.1, "actual_to_forecast": "positive", "event_id": 191, "forecast": 117.9, "occurrence_id": 556213, "occurrence_time": "2026-09-07T05:00:00Z", "precision": 1, "preliminary": true, "previous": 116.2, "reference_period": "七月"},
+    {"actual": 75.95, "actual_to_forecast": "neutral", "event_id": 1328, "occurrence_id": 555526, "occurrence_time": "2026-09-07T06:00:00Z", "precision": 2, "preliminary": false, "previous": 73.45, "reference_period": "八月", "unit": "B"},
+    {"actual_to_forecast": "neutral", "event_id": 1107, "occurrence_id": 556534, "occurrence_time": "2026-09-07T07:00:00Z", "precision": 1, "preliminary": false, "previous": 132.7, "reference_period": "", "unit": "B"},
+    {"actual_to_forecast": "neutral", "event_id": 866, "occurrence_id": 555541, "occurrence_time": "2026-09-07T08:00:00Z", "precision": 3, "preliminary": false, "previous": 3.419, "reference_period": "八月", "unit": "T"},
+    {"actual_to_forecast": "neutral", "event_id": 1327, "occurrence_id": 556221, "occurrence_time": "2026-09-07T08:30:00Z", "precision": 2, "preliminary": false, "previous": 447.8, "reference_period": "八月", "unit": "B"}
+  ]
+}
