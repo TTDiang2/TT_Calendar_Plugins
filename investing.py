@@ -65,6 +65,9 @@ _UTC_TZ = timezone.utc
 # importance 字符串 → 星级（1-3）
 _IMP_RANK = {"low": 1, "medium": 2, "high": 3}
 
+# 美国(5)/中国(37) 图层默认只显示 3★（用户日常用法）；其余国家默认全显示
+_DEFAULT_3STAR: frozenset[str] = frozenset({"5", "37"})
+
 # CF 拦截特征头
 _CF_HINT_HEADERS: tuple[str, ...] = ("cf-ray", "cf-mitigated", "cf-cache-status")
 
@@ -318,6 +321,9 @@ def _parse_occurrence(occ: dict[str, Any], meta: dict[str, Any]) -> Event | None
         extra["period"] = str(period)
 
     source_ref = f"{country_id or '?'}:{oid}"
+    # 同日排序：星级优先（3★ 在最上）、同级按当地时间先后；imp 上限 3 兜底
+    minutes = int(dt_local.hour * 60 + dt_local.minute) if dt_local else 0
+    sort_key = (3 - min(imp, 3)) * 10000 + minutes
 
     return Event(
         layer_id=layer_id,
@@ -328,7 +334,7 @@ def _parse_occurrence(occ: dict[str, Any], meta: dict[str, Any]) -> Event | None
         color=str(country_info.get("color") or "#6B7280"),
         source_ref=source_ref,
         extra=extra,
-        sort_key=0,
+        sort_key=sort_key,
     )
 
 
@@ -371,7 +377,10 @@ class InvestingSource(Source):
                 sort_order=11,
                 kind="dot",
                 group=self.group,
-                config={"country_code": code},
+                config={
+                    "country_code": code,
+                    "min_importance": 3 if code in _DEFAULT_3STAR else 0,
+                },
             )
             for code, info in _COUNTRIES.items()
         ]
@@ -383,7 +392,7 @@ class InvestingSource(Source):
             sort_order=12,
             kind="dot",
             group=self.group,
-            config={"country_code": "other"},
+            config={"country_code": "other", "min_importance": 0},
         ))
         return specs
 
@@ -392,12 +401,15 @@ class InvestingSource(Source):
         （如 investing_42 曾叫"英为财情·英国"、现在实际是马来西亚）display_name
         与声明不符 → 改名/改色并**按默认 enabled 覆盖**（旧 enabled 语义随国家
         转移而失效）；display_name 一致的图层保持用户手动 enabled 不动。
+        另外：旧图层 config 缺 min_importance 键时补种为 spec 默认值（不覆盖
+        用户已改过的值），否则既有中美图层拿不到默认 3★。
         """
         from tt_calendar import db
 
         for spec in self.layer_specs():
             row = conn.execute(
-                "SELECT display_name, enabled FROM layer_config WHERE layer_id=?",
+                "SELECT display_name, enabled, config_json FROM layer_config "
+                "WHERE layer_id=?",
                 (spec.layer_id,),
             ).fetchone()
             if not row:
@@ -414,12 +426,33 @@ class InvestingSource(Source):
                         config=spec.config,
                     ),
                 )
-            elif row["display_name"] != spec.display_name:
+                continue
+            cfg: dict[str, Any] = {}
+            if row["config_json"]:
+                try:
+                    cfg = json.loads(row["config_json"])
+                except (TypeError, ValueError):
+                    cfg = {}
+            if not isinstance(cfg, dict):
+                cfg = {}
+            renamed = row["display_name"] != spec.display_name
+            if "min_importance" not in cfg:
+                cfg["min_importance"] = spec.config.get("min_importance", 0)
+                renamed = True
+            if not renamed:
+                continue
+            if row["display_name"] != spec.display_name:
                 conn.execute(
                     "UPDATE layer_config SET display_name=?, color=?, enabled=?, "
-                    "group_name=?, sort_order=?, kind=? WHERE layer_id=?",
+                    "group_name=?, sort_order=?, kind=?, config_json=? WHERE layer_id=?",
                     (spec.display_name, spec.color, 1 if spec.enabled else 0,
-                     self.group, spec.sort_order, spec.kind, spec.layer_id),
+                     self.group, spec.sort_order, spec.kind,
+                     json.dumps(cfg, ensure_ascii=False), spec.layer_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE layer_config SET config_json=? WHERE layer_id=?",
+                    (json.dumps(cfg, ensure_ascii=False), spec.layer_id),
                 )
 
     # ------------------------------------------------------------------

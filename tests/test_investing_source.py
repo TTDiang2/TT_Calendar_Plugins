@@ -172,6 +172,82 @@ def cfg_other() -> str:
 
 
 # ---------------------------------------------------------------------------
+# 图层声明：min_importance 默认值 + 同日星级排序 sort_key
+# ---------------------------------------------------------------------------
+
+
+def test_layer_specs_min_importance_defaults() -> None:
+    """中美图层默认 3★，其余国家/兜底图层默认全显示。"""
+    s = InvestingSource()
+    specs = {p.layer_id: p for p in s.layer_specs()}
+    assert specs["investing_5"].config["min_importance"] == 3
+    assert specs["investing_37"].config["min_importance"] == 3
+    assert specs["investing_35"].config["min_importance"] == 0
+    assert specs[mod._OTHER_LAYER].config["min_importance"] == 0
+    for p in s.layer_specs():
+        assert p.config.get("country_code") is not None
+
+
+def test_sort_key_star_priority_then_time() -> None:
+    """3★ 在最上（sort_key 最小），同级按当地时间先后；分钟数上限 1439 < 10000 不串档。"""
+    evs = _events()
+    by_ref = {e.source_ref: e for e in evs}
+    jp = by_ref["35:556231"]  # importance=1(low), time=07:50 → 20470
+    assert jp.extra["importance"] == 1
+    assert jp.sort_key == 2 * 10000 + 7 * 60 + 50
+    cn = by_ref["37:555541"]  # importance=2(medium)
+    h, m = cn.extra["time"].split(":")
+    assert cn.sort_key == 1 * 10000 + int(h) * 60 + int(m)
+    from collections import defaultdict
+    by_rank: dict[int, list[int]] = defaultdict(list)
+    for e in evs:
+        by_rank[e.extra["importance"]].append(e.sort_key)
+    # 档位不串档：高星级事件 sort_key 恒小于低星级事件
+    for low in (0, 1, 2):
+        for high in (low + 1, low + 2, low + 3):
+            if by_rank[low] and by_rank[high]:
+                assert max(by_rank[high]) < min(by_rank[low])
+
+
+def test_ensure_layers_seeds_min_importance() -> None:
+    """旧图层 config 缺 min_importance 键 → 补种 spec 默认值；用户已改过的值不覆盖。"""
+    import sqlite3
+    from tt_calendar import db
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    db.init_db(conn)
+    s = InvestingSource()
+    s.ensure_layers(conn)
+    conn.commit()
+
+    conn.execute(
+        "UPDATE layer_config SET config_json=? WHERE layer_id='investing_35'",
+        ('{"country_code":"35"}',),
+    )
+    conn.commit()
+    s.ensure_layers(conn)
+    conn.commit()
+    row = conn.execute(
+        "SELECT config_json FROM layer_config WHERE layer_id='investing_35'"
+    ).fetchone()
+    assert json.loads(row["config_json"])["min_importance"] == 0
+
+    conn.execute(
+        "UPDATE layer_config SET config_json=? WHERE layer_id='investing_5'",
+        ('{"country_code":"5","min_importance":1}',),
+    )
+    conn.commit()
+    s.ensure_layers(conn)
+    conn.commit()
+    row = conn.execute(
+        "SELECT config_json FROM layer_config WHERE layer_id='investing_5'"
+    ).fetchone()
+    assert json.loads(row["config_json"])["min_importance"] == 1
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
 # Cookie 文件解析
 # ---------------------------------------------------------------------------
 
