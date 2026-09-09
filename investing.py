@@ -521,8 +521,9 @@ class InvestingSource(Source):
         all_events: list[Event] = []
         errors: list[str] = []
         cf_blocked = False
+        bad_status = 0
         try:
-            all_events, cf_blocked = await self._fetch_range(session, start, end, countries)
+            all_events, cf_blocked, bad_status = await self._fetch_range(session, start, end, countries)
         except Exception as e:
             log.warning("investing fetch failed: %s", e)
             errors.append(str(e))
@@ -531,16 +532,14 @@ class InvestingSource(Source):
         result.fetched = len(all_events)
         result.inserted = len(all_events)
         if cf_blocked and not all_events:
-            result.error = (
-                "Cloudflare 拦截（HTTP 403/429 + cf-ray）。请在桌面端用 Edge 打开 "
-                "https://cn.investing.com/economic-calendar 通过人机验证后，"
-                "把浏览器 cookie 导出为 data/investing_cookies.json，"
-                "应用内点「立即更新」即会带上 cookie 重新拉取。"
-            )
+            result.error = _cf_block_hint(bad_status)
         elif errors:
             result.error = "; ".join(errors)[:300]
         elif cf_blocked and all_events:
-            result.error = f"部分请求被 Cloudflare 拦截，已成功 {len(all_events)} 条"
+            result.error = (
+                f"部分请求被 Cloudflare 拦截，已成功 {len(all_events)} 条；"
+                "稍后可再点一次「立即更新」补齐"
+            )
         log.info("investing fetch done: %d events; cf_blocked=%s", len(all_events), cf_blocked)
         return all_events, result
 
@@ -550,13 +549,17 @@ class InvestingSource(Source):
         start: date_t,
         end: date_t,
         countries: list[str],
-    ) -> tuple[list[Event], bool]:
+    ) -> tuple[list[Event], bool, int]:
         """拉取整个 [start, end]。服务端单页上限 200（实测 ~5-6 天全球事件），
         超过则把日期窗口对半拆分递归请求（按日期过滤天然无重复），不依赖
         next_page_cursor（该游标的回传参数名未公开，实测常见名均被忽略）。
+
+        返回 (events, cf_blocked, last_bad_status)。last_bad_status 取最后一次
+        非 200 的状态码（无则 0），供全量失败时区分 429 限流 / 403 挑战。
         """
         events: list[Event] = []
         cf_blocked = False
+        bad_status = 0
         queue: list[tuple[date_t, date_t]] = [(start, end)]
         pages = 0
         while queue:
@@ -570,6 +573,16 @@ class InvestingSource(Source):
             )
             if is_cf:
                 cf_blocked = True
+            if status != 200:
+                bad_status = status
+            if status == 429:
+                # 限流窗口内剩余分段也必然 429；继续请求只会加重限流判定。
+                # 本次到此为止，把"多次尝试"交给用户稍后再点（不锁死）。
+                log.warning(
+                    "investing: rate limited (429), stopping %d remaining segments; "
+                    "retry in 5-15 min", len(queue),
+                )
+                break
             if not ok or not payload:
                 if not is_cf or ok:
                     log.warning("investing: range %s..%s failed status=%d", s, e, status)
@@ -582,7 +595,7 @@ class InvestingSource(Source):
                 continue
             events.extend(_parse_v2_payload(payload))
             await asyncio.sleep(0.4)
-        return events, cf_blocked
+        return events, cf_blocked, bad_status
 
     async def _get_json_with_retry(
         self,
@@ -590,7 +603,10 @@ class InvestingSource(Source):
         params: list[tuple[str, str]],
         page: int,
     ) -> tuple[bool, dict[str, Any], bool, int]:
-        """GET 一次 + 最多 2 次重试（覆盖 CF 偶发 challenge/429）。"""
+        """GET 一次 + 最多 2 次重试（覆盖 CF 偶发 challenge/4xx）。
+
+        429 立即中止重试：限流时再请求只会加重，留给外层"稍后再试"。
+        """
         last_cf = False
         last_status = 0
         for attempt in range(3):
@@ -603,6 +619,8 @@ class InvestingSource(Source):
                 except Exception as e:
                     log.warning("investing: bad JSON page=%d attempt=%d: %s", page, attempt + 1, e)
                     return False, {}, last_cf, 200
+            if resp.status_code == 429:
+                break
             if attempt < 2:
                 await asyncio.sleep(2.0 * (attempt + 1))
         return False, {}, last_cf, last_status
@@ -635,11 +653,30 @@ def _build_range_params(
 
 
 def _is_cf_block(resp: _Resp) -> bool:
-    """判断响应是否为 Cloudflare 拦截（403/429 + cf-* 头）。"""
+    """判断响应是否为 Cloudflare 拦截（403/429/503 + cf-* 头）。"""
     if resp.status_code in (403, 429, 503):
         if any(name in resp.headers for name in _CF_HINT_HEADERS):
             return True
     return False
+
+
+def _cf_block_hint(last_status: int) -> str:
+    """CF 拦截的全量失败提示：强调这是临时状态、允许重试，而非"永久失败"。
+
+    每次点「立即更新」都是全新尝试，失败不会把后续刷新锁死；
+    这里按最后状态码区分 429（限流）/ 403（人机验证）给出对应建议。
+    """
+    if last_status == 429:
+        return (
+            "当前被 Cloudflare 限流（429，短时间内请求偏多）。这是临时状态、可以重试："
+            "请等 5-15 分钟后再点「立即更新」，通常会自行恢复；cookie 大概率没过期，"
+            "不必立刻重新导出。"
+        )
+    return (
+        "被 Cloudflare 人机验证拦截（403）。一般是临时拦截：先过几分钟再点「立即更新」重试；"
+        "如果反复尝试都失败，再用 Edge 打开 https://cn.investing.com/economic-calendar "
+        "重新导出 cookie 到 data/investing_cookies.json。"
+    )
 
 
 # ---------------------------------------------------------------------------
