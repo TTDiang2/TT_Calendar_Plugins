@@ -248,6 +248,67 @@ def test_ensure_layers_seeds_min_importance() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 译名撞车消歧（1Y/5Y LPR 官方译名完全相同的场景）
+# ---------------------------------------------------------------------------
+
+
+def test_parse_title_disambiguation_same_translated() -> None:
+    """两个事件中文译名完全相同 → 标题追加 short_name 区分。"""
+    payload = {
+        "events": [
+            {"event_id": 101, "country_id": 37, "currency": "CNY", "importance": "high",
+             "event_translated": "中国央行贷款市场报价利率(LPR)", "short_name": "LPR 1Y"},
+            {"event_id": 102, "country_id": 37, "currency": "CNY", "importance": "high",
+             "event_translated": "中国央行贷款市场报价利率(LPR)", "short_name": "LPR 5Y"},
+        ],
+        "occurrences": [
+            {"event_id": 101, "occurrence_id": 1, "occurrence_time": "2026-09-20T01:00:00Z",
+             "actual": 3.0, "precision": 2, "unit": "%"},
+            {"event_id": 102, "occurrence_id": 2, "occurrence_time": "2026-09-20T01:00:00Z",
+             "actual": 3.5, "precision": 2, "unit": "%"},
+        ],
+    }
+    evs = _parse_v2_payload(payload)
+    assert sorted(e.title for e in evs) == [
+        "中国央行贷款市场报价利率(LPR)（LPR 1Y）",
+        "中国央行贷款市场报价利率(LPR)（LPR 5Y）",
+    ]
+
+
+def test_parse_title_disambiguation_falls_back_to_event_id() -> None:
+    """short_name 也撞车/缺失 → 用 event_id 后缀，仍可区分。"""
+    payload = {
+        "events": [
+            {"event_id": 201, "country_id": 37, "importance": "high",
+             "event_translated": "同名事件"},
+            {"event_id": 202, "country_id": 37, "importance": "high",
+             "event_translated": "同名事件"},
+        ],
+        "occurrences": [
+            {"event_id": 201, "occurrence_id": 1, "occurrence_time": "2026-09-20T01:00:00Z"},
+            {"event_id": 202, "occurrence_id": 2, "occurrence_time": "2026-09-20T01:00:00Z"},
+        ],
+    }
+    evs = _parse_v2_payload(payload)
+    assert {e.title for e in evs} == {"同名事件（#201）", "同名事件（#202）"}
+
+
+def test_parse_title_no_collision_keeps_plain() -> None:
+    """不撞车 → 维持原译名，不加后缀。"""
+    payload = {
+        "events": [
+            {"event_id": 301, "country_id": 37, "importance": "high",
+             "event_translated": "普通事件", "short_name": "XY"},
+        ],
+        "occurrences": [
+            {"event_id": 301, "occurrence_id": 1, "occurrence_time": "2026-09-20T01:00:00Z"},
+        ],
+    }
+    evs = _parse_v2_payload(payload)
+    assert len(evs) == 1 and evs[0].title == "普通事件"
+
+
+# ---------------------------------------------------------------------------
 # Cookie 文件解析
 # ---------------------------------------------------------------------------
 

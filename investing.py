@@ -39,6 +39,7 @@ import asyncio
 import json
 import logging
 import re
+from collections import defaultdict
 from datetime import date as date_t, datetime, timezone, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -226,6 +227,33 @@ def _layer_for_country(country_id: Any) -> tuple[str, bool]:
     return _OTHER_LAYER, False
 
 
+def _disambiguated_titles(meta_list: list[dict[str, Any]]) -> dict[int, str]:
+    """同批事件中文译名撞车时生成区分标题（如 1Y/5Y LPR 官方译名完全相同，
+    渲染成三张同名卡片分不清谁是谁）。
+
+    优先追加 short_name 后缀（组内两两不同且非空时）；short_name 也撞车
+    则退化为 event_id 后缀。未撞车的事件不进返回表，维持原译名。
+    """
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for ev in meta_list:
+        title = str(ev.get("event_translated") or ev.get("short_name") or "").strip()
+        if title:
+            groups[title].append(ev)
+    out: dict[int, str] = {}
+    for title, group in groups.items():
+        if len(group) < 2:
+            continue
+        shorts = [str(ev.get("short_name") or "").strip() for ev in group]
+        use_short = all(shorts) and len(set(shorts)) == len(shorts)
+        for idx, ev in enumerate(group):
+            eid = ev.get("event_id")
+            if eid is None:
+                continue
+            suffix = shorts[idx] if use_short else f"#{eid}"
+            out[int(eid)] = f"{title}（{suffix}）"
+    return out
+
+
 def _parse_v2_payload(payload: dict[str, Any]) -> list[Event]:
     """把 v2 occurrences 响应转成 Event 列表。
 
@@ -237,12 +265,14 @@ def _parse_v2_payload(payload: dict[str, Any]) -> list[Event]:
         eid = ev.get("event_id")
         if eid is not None:
             events_by_id[int(eid)] = ev
+    titles = _disambiguated_titles(list(events_by_id.values()))
 
     out: list[Event] = []
     for occ in payload.get("occurrences") or []:
         try:
-            meta = events_by_id.get(int(occ.get("event_id") or 0), {})
-            ev = _parse_occurrence(occ, meta)
+            eid = int(occ.get("event_id") or 0)
+            meta = events_by_id.get(eid, {})
+            ev = _parse_occurrence(occ, meta, titles)
             if ev:
                 out.append(ev)
         except Exception as e:
@@ -250,7 +280,11 @@ def _parse_v2_payload(payload: dict[str, Any]) -> list[Event]:
     return out
 
 
-def _parse_occurrence(occ: dict[str, Any], meta: dict[str, Any]) -> Event | None:
+def _parse_occurrence(
+    occ: dict[str, Any],
+    meta: dict[str, Any],
+    titles: dict[int, str] | None = None,
+) -> Event | None:
     oid = occ.get("occurrence_id")
     if oid is None:
         return None
@@ -258,7 +292,9 @@ def _parse_occurrence(occ: dict[str, Any], meta: dict[str, Any]) -> Event | None
     country_id = meta.get("country_id")
     layer_id, known = _layer_for_country(country_id)
 
-    title = str(meta.get("event_translated") or meta.get("short_name") or "").strip()
+    eid = int(occ.get("event_id") or 0)
+    base_title = str(meta.get("event_translated") or meta.get("short_name") or "").strip()
+    title = (titles or {}).get(eid) or base_title
     if not title:
         return None
 
@@ -555,8 +591,10 @@ class InvestingSource(Source):
         errors: list[str] = []
         cf_blocked = False
         bad_status = 0
+        complete = False
         try:
-            all_events, cf_blocked, bad_status = await self._fetch_range(session, start, end, countries)
+            all_events, cf_blocked, bad_status, complete = await self._fetch_range(
+                session, start, end, countries)
         except Exception as e:
             log.warning("investing fetch failed: %s", e)
             errors.append(str(e))
@@ -564,6 +602,7 @@ class InvestingSource(Source):
         result = ImportResult(source=self.source_id, layer_id="investing_*")
         result.fetched = len(all_events)
         result.inserted = len(all_events)
+        result.complete = complete
         if cf_blocked and not all_events:
             result.error = _cf_block_hint(bad_status)
         elif errors:
@@ -587,12 +626,14 @@ class InvestingSource(Source):
         超过则把日期窗口对半拆分递归请求（按日期过滤天然无重复），不依赖
         next_page_cursor（该游标的回传参数名未公开，实测常见名均被忽略）。
 
-        返回 (events, cf_blocked, last_bad_status)。last_bad_status 取最后一次
-        非 200 的状态码（无则 0），供全量失败时区分 429 限流 / 403 挑战。
+        返回 (events, cf_blocked, last_bad_status, complete)。last_bad_status 取
+        最后一次非 200 的状态码（无则 0），供全量失败时区分 429 限流 / 403 挑战；
+        complete=False 表示窗口未完整覆盖（放弃分段/有段失败），上游不得据此清库。
         """
         events: list[Event] = []
         cf_blocked = False
         bad_status = 0
+        complete = True
         queue: list[tuple[date_t, date_t]] = [(start, end)]
         pages = 0
         while queue:
@@ -600,6 +641,7 @@ class InvestingSource(Source):
             pages += 1
             if pages > _MAX_PAGES:
                 log.warning("investing: too many page splits (%d), giving up remainder", pages)
+                complete = False
                 break
             ok, payload, is_cf, status = await self._get_json_with_retry(
                 session, _build_range_params(s, e, countries), pages
@@ -608,6 +650,7 @@ class InvestingSource(Source):
                 cf_blocked = True
             if status != 200:
                 bad_status = status
+                complete = False
             if status == 429:
                 # 限流窗口内剩余分段也必然 429；继续请求只会加重限流判定。
                 # 本次到此为止，把"多次尝试"交给用户稍后再点（不锁死）。
@@ -628,7 +671,7 @@ class InvestingSource(Source):
                 continue
             events.extend(_parse_v2_payload(payload))
             await asyncio.sleep(0.4)
-        return events, cf_blocked, bad_status
+        return events, cf_blocked, bad_status, complete
 
     async def _get_json_with_retry(
         self,
