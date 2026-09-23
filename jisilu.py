@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from datetime import date as date_t, datetime
 from typing import Any
@@ -210,8 +211,20 @@ def _parse_item(item: dict[str, Any], layer_id: str, qtype: str) -> Event | None
         color = item.get("color")
         if color:
             color = str(color)
-        # 外部源唯一 ID：qtype + jisilu id
-        source_ref = f"{qtype}:{item.get('id', '')}"
+        # 外部源唯一 ID：键改为「code + 日期 + 子动作」而非 jisilu 的 `id`——
+        # jisilu 编辑底层数据时会换发新的 id 但代码/标题/描述不变，按 id 散列会造成
+        # 同事件被重复入库（典型表现：同一只转债的【申购日】出现两次）。
+        code = str(item.get("code") or "").strip()
+        sub_action_m = re.match(r"^【(.+?)】", title)
+        sub_action = sub_action_m.group(1) if sub_action_m else ""
+        if code:
+            source_ref = (
+                f"{qtype}:{code}:{d.isoformat()}:{sub_action}"
+                if sub_action
+                else f"{qtype}:{code}:{d.isoformat()}"
+            )
+        else:
+            source_ref = f"{qtype}:{item.get('id', '')}"  # 无 code 时回退到 id（向后兼容）
         extra: dict[str, Any] = {"qtype": qtype}
         if item.get("code"):
             extra["code"] = str(item["code"])
