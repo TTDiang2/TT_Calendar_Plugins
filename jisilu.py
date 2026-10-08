@@ -73,6 +73,9 @@ class JisiluSource(Source):
 
     source_id: str = "jisilu"
     display_name: str = "集思录投资日历"
+    # 本源用到 sub_filter / manual_pickable（协议 v2 能力）。显式声明，
+    # 装到不支持的旧版 app 时会被明确拒绝并报出版本差，而不是运行到一半炸。
+    PROTOCOL_VERSION: int = 2
     group: str = "集思录"  # 侧栏分组（历史沿用；与订阅卡片名一致）
     needs_internet: bool = True
     needs_credentials: bool = False

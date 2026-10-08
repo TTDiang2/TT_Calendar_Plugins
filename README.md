@@ -90,6 +90,15 @@ Optional `LayerSpec` fields — **omit one and the feature silently does nothing
 
 Both are stored on the layer row (`layer_config.config_json`), so the rules survive a source being uninstalled. `ensure_layers` only ever writes these keys plus your own `config` — it never touches user data such as ticked sub-actions.
 
+### Declare `PROTOCOL_VERSION` if you use any of the above
+
+```python
+class MySource(Source):
+    PROTOCOL_VERSION = 2   # I need an app that speaks protocol v2
+```
+
+The loader compares your value against the app's and **skips your plugin with a readable reason** when the app is older — instead of letting it load and then fail halfway with an opaque `TypeError`. Older plugins that declare nothing stay on protocol v1 and keep working on newer apps; only "plugin needs more than the app has" is ever rejected.
+
 Needs an app build that has `SubFilterSpec`. On older builds the loader logs `plugin load failed` and skips the plugin; existing layers keep working.
 
 ---

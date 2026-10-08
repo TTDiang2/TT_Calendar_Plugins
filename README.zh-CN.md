@@ -95,7 +95,17 @@ python -m pytest ../TT_Calendar_Plugins/tests -q
 两者都存进图层行（`layer_config.config_json`），因此源被卸载后规则仍在。`ensure_layers` 只写这些键
 和你自己的 `config`，**不会**动用户数据（例如已勾选的子动作）。
 
-需要带 `SubFilterSpec` 的 app 版本。旧版会记一条 `plugin load failed` 并跳过该插件，已有图层照常工作。
+### 只要用到了上面这些，就必须声明 `PROTOCOL_VERSION`
+
+```python
+class MySource(Source):
+    PROTOCOL_VERSION = 2   # 我需要支持协议 v2 的 app
+```
+
+加载器会拿你的值和 app 的比，**app 更旧时直接跳过你的插件并给出可读原因**，
+而不是让它装上后运行到一半抛一个看不懂的 `TypeError`。
+不声明版本的早期插件按 v1 处理，在更新的 app 上照常可用；
+只有「插件要求高于 app」这一个方向会被拦。
 
 ---
 
