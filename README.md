@@ -60,6 +60,26 @@ investing.com is behind Cloudflare protection; plain requests get blocked. On fi
 
 4. Go back to the app and click "Update Now" — when the cookie expires (~half a day to a day), just re-export it
 
+## 📋 Plugin Registry
+
+[`registry.json`](registry.json) is this repo's machine-readable index: one entry per plugin with its `source_id`, display name, download URL, **sha256**, required `PROTOCOL_VERSION`, credential/网络 requirements, refresh window and the full layer list. It's what a future in-app installer would read.
+
+**It is generated, never hand-edited.** `tools/gen_registry.py` imports each plugin and reads the declarations straight off the `Source` subclass, so the index cannot disagree with the code:
+
+```bash
+# regenerate after changing any plugin's declarations
+python tools/gen_registry.py
+
+# verify it matches the code (what CI should run)
+python tools/gen_registry.py --check
+```
+
+Output is deliberately byte-stable (fixed key order, plugins sorted by `source_id`, no timestamp) so `--check` is a plain byte comparison — no noisy diffs that train people to ignore it.
+
+`tests/test_registry.py` turns "index matches code" into a failing assertion, and also checks sha256/size against the real files. Both the generator and the tests need the `tt_calendar` package, so run them from the TT Calendar source tree (same as the tests below).
+
+> ⚠️ **Read `needs_credentials` carefully.** It means "needs an *account* credential", not "nothing to configure". `investing.py` sets it to `false` yet **does** require the Cloudflare cookie file described above — the cookie is a session bypass, not account auth. Always check the plugin's notes/README before installing.
+
 ## 🧪 Tests
 
 Plugin tests run inside the **TT Calendar source tree** (they depend on the `tt_calendar` package):

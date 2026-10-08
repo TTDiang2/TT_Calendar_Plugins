@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "protocol_version": 2,
+  "plugins": [
+    {
+      "source_id": "investing",
+      "display_name": "英为财情-投资日历",
+      "file": "investing.py",
+      "url": "https://raw.githubusercontent.com/TTDiang2/TT_Calendar_Plugins/main/investing.py",
+      "sha256": "5b66a163aed99a48ee3539168edd3f51214802e78c488a0e8a0a74813b7830a0",
+      "size": 32847,
+      "protocol_version": 2,
+      "group": "英为财情-投资日历",
+      "needs_internet": true,
+      "needs_credentials": false,
+      "refresh_past_days": 2,
+      "refresh_future_days": 14,
+      "has_field_specs": true,
+      "layers": [
+        {
+          "layer_id": "investing_110",
+          "display_name": "英为财情·南非",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_14",
+          "display_name": "英为财情·印度",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_25",
+          "display_name": "英为财情·澳大利亚",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_26",
+          "display_name": "英为财情·德国",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_32",
+          "display_name": "英为财情·巴西",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_35",
+          "display_name": "英为财情·日本",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "investing_37",
+          "display_name": "英为财情·中国",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "investing_39",
+          "display_name": "英为财情·中国香港",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_42",
+          "display_name": "英为财情·马来西亚",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_43",
+          "display_name": "英为财情·新西兰",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_48",
+          "display_name": "英为财情·印度尼西亚",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_5",
+          "display_name": "英为财情·美国",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "investing_51",
+          "display_name": "英为财情·希腊",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_6",
+          "display_name": "英为财情·加拿大",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_72",
+          "display_name": "英为财情·欧洲央行",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "investing_96",
+          "display_name": "英为财情·欧元区",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "investing_other",
+          "display_name": "英为财情·其他",
+          "kind": "dot",
+          "enabled_by_default": false
+        }
+      ]
+    },
+    {
+      "source_id": "jisilu",
+      "display_name": "集思录投资日历",
+      "file": "jisilu.py",
+      "url": "https://raw.githubusercontent.com/TTDiang2/TT_Calendar_Plugins/main/jisilu.py",
+      "sha256": "662442c458c86053e34866cc8457addb9a957c4bb49918bb34db86bb2e0715a1",
+      "size": 10274,
+      "protocol_version": 2,
+      "group": "集思录",
+      "needs_internet": true,
+      "needs_credentials": false,
+      "refresh_past_days": 180,
+      "refresh_future_days": 90,
+      "has_field_specs": false,
+      "layers": [
+        {
+          "layer_id": "jisilu_BOND",
+          "display_name": "集思录·债券",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "jisilu_CBDIV",
+          "display_name": "集思录·正股分红",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_CNV",
+          "display_name": "集思录·可转债",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_FUND",
+          "display_name": "集思录·基金",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "jisilu_OTHER",
+          "display_name": "集思录·其它",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "jisilu_STOCK",
+          "display_name": "集思录·股票",
+          "kind": "dot",
+          "enabled_by_default": false
+        },
+        {
+          "layer_id": "jisilu_cnreits",
+          "display_name": "集思录·REITs",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_diva",
+          "display_name": "集思录·A股分红",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_divhk",
+          "display_name": "集思录·H股分红",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_idxfut",
+          "display_name": "集思录·股指期货",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_idxopt",
+          "display_name": "集思录·股指期权",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_newbond_apply",
+          "display_name": "集思录·新债申购",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_newbond_onlist",
+          "display_name": "集思录·新债上市",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_newstock_apply",
+          "display_name": "集思录·新股申购",
+          "kind": "dot",
+          "enabled_by_default": true
+        },
+        {
+          "layer_id": "jisilu_newstock_onlist",
+          "display_name": "集思录·新股上市",
+          "kind": "dot",
+          "enabled_by_default": true
+        }
+      ]
+    }
+  ]
+}

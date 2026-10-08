@@ -62,6 +62,35 @@
 
 4. 回应用点「立即更新」—— cookie 过期（约半天~1 天）后只需重新导出一次
 
+## 📋 插件注册表
+
+[`registry.json`](registry.json) 是本仓库的机器可读索引：每个插件一条，含 `source_id`、显示名、
+下载地址、**sha256**、所需的 `PROTOCOL_VERSION`、凭据/网络要求、刷新窗口，以及完整的图层清单。
+将来的应用内安装器就是读它。
+
+**它是生成物，不要手改。** `tools/gen_registry.py` 会 import 每个插件，直接从 `Source`
+子类的声明上读信息，因此索引不可能与代码不一致：
+
+```bash
+# 改过任何插件的声明后重新生成
+python tools/gen_registry.py
+
+# 校验索引与代码一致（CI 应跑这个）
+python tools/gen_registry.py --check
+```
+
+输出刻意做成**字节稳定**（键序固定、插件按 `source_id` 排序、不含时间戳），
+这样 `--check` 就是一次纯字节比对，不会产生「每次都变」的噪声 diff——那种噪声会让人
+习惯性忽略失败信号。
+
+`tests/test_registry.py` 把「索引必须与代码一致」变成会失败的断言，并校验 sha256/大小
+与真实文件相符。生成器与测试都依赖 `tt_calendar` 包，需在 TT Calendar 源码树内运行
+（与下面的测试同理）。
+
+> ⚠️ **`needs_credentials` 要仔细读**：它的含义是「需要*账号*凭据」，而不是「无需任何配置」。
+> `investing.py` 把它设成 `false`，但它**仍然**需要上文那份 Cloudflare cookie 文件——
+> cookie 是会话绕过，不算账号认证。安装前请先看该插件的说明。
+
 ## 🧪 测试
 
 插件测试设计为在 **TT Calendar 源码目录**下运行（依赖 `tt_calendar` 包）：
