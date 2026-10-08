@@ -81,6 +81,17 @@ Wrote a new subscription plugin? Share it with the community:
 
 **Protocol quick reference**: a `Source` subclass must implement `source_id / display_name / layer_specs() / fetch(start, end)`. Optional hooks: `field_specs()` (event field UI spec) and `refresh_past_days / refresh_future_days` (refresh window).
 
+Optional `LayerSpec` fields — **omit one and the feature silently does nothing**, so declare them:
+
+| Field | What breaks if you omit it |
+|---|---|
+| `sub_filter=SubFilterSpec(group_key=..., title_pattern=...)` | Per-event sub-action filtering (e.g. 【申购日】) is skipped. The core reads `pattern` off the layer declaration, matches one capture group against the event title, and intersects it with what the user ticks in Settings — the core knows nothing about your title format. |
+| `manual_pickable=False` | The layer shows up in the day-entry dot/color pickers, so manual entries can be added and then get overwritten by the next sync. |
+
+Both are stored on the layer row (`layer_config.config_json`), so the rules survive a source being uninstalled. `ensure_layers` only ever writes these keys plus your own `config` — it never touches user data such as ticked sub-actions.
+
+Needs an app build that has `SubFilterSpec`. On older builds the loader logs `plugin load failed` and skips the plugin; existing layers keep working.
+
 ---
 
 TT Calendar main repo: [TTDiang2/TT_Calendar](https://github.com/TTDiang2/TT_Calendar) · License: MIT

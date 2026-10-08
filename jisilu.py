@@ -22,11 +22,14 @@ import httpx
 from tt_calendar.models import Event, ImportResult
 from tt_calendar.utils.date_utils import try_parse_date
 from tt_calendar.utils.text_utils import html_to_plain
-from tt_calendar.sources.base import LayerSpec, Source
+from tt_calendar.sources.base import LayerSpec, Source, SubFilterSpec
 
 log = logging.getLogger(__name__)
 
 _PREFIX = "jisilu_"  # 图层前缀：jisilu_<qtype>
+
+# 子动作写在标题的 【】 里，如「【申购日】天脉转债」
+_SUB_FILTER = SubFilterSpec(group_key="qtype", title_pattern=r"^【(.+?)】")
 
 # 集思录 qtype 全量映射（已通过 Playwright 抓真实请求确认）
 # 中文显示名 + 默认是否启用 + 在 UI 中显示的色块颜色
@@ -92,6 +95,8 @@ class JisiluSource(Source):
                 kind="dot",
                 group=self.group,
                 config={"qtype": qtype},
+                sub_filter=_SUB_FILTER,
+                manual_pickable=False,
             )
             for qtype, info in QTYPES.items()
         ]

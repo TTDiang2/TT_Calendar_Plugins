@@ -85,6 +85,18 @@ python -m pytest ../TT_Calendar_Plugins/tests -q
 **协议速览**：`Source` 子类需实现 `source_id / display_name / layer_specs() / fetch(start, end)`，
 可选 `field_specs()`（事件字段 UI 规格）与 `refresh_past_days / refresh_future_days`（刷新窗口）。
 
+`LayerSpec` 的可选字段 —— **不声明则对应功能静默失效**，所以务必声明：
+
+| 字段 | 不声明会怎样 |
+|---|---|
+| `sub_filter=SubFilterSpec(group_key=..., title_pattern=...)` | 按事件子动作（如【申购日】）的过滤整个失效。核心只从图层声明里读这个正则，取其中**一个**捕获组与用户在设置页勾选的子动作求交集 —— 核心不知道你的标题长什么样。 |
+| `manual_pickable=False` | 该图层会出现在新建条目的点选/涂色选择器里，用户手工加的标记会被下次同步覆盖。 |
+
+两者都存进图层行（`layer_config.config_json`），因此源被卸载后规则仍在。`ensure_layers` 只写这些键
+和你自己的 `config`，**不会**动用户数据（例如已勾选的子动作）。
+
+需要带 `SubFilterSpec` 的 app 版本。旧版会记一条 `plugin load failed` 并跳过该插件，已有图层照常工作。
+
 ---
 
 TT Calendar 主仓库：[TTDiang2/TT_Calendar](https://github.com/TTDiang2/TT_Calendar) · 协议：MIT
