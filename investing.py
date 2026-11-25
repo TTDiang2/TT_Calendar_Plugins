@@ -29,8 +29,10 @@
 
 国家归属与重要性都取自行内字段（country_id / importance），不能依赖请求参数。
 Cloudflare 按 TLS 指纹（JA3）拦截非浏览器客户端：httpx 固定 "python" 指纹会被
-边缘直接 403；curl_cffi 的 impersonate 能模拟 Chrome 真实 ClientHello 绕过，
-配合浏览器导出的 cf_clearance cookie 才能稳定拉取。
+边缘直接 403；curl_cffi 的 impersonate 能模拟 Chrome 真实 ClientHello 绕过。
+数据端点本身不校验登录态，浏览器导出的 cf_clearance 只属于 cn.investing.com，
+不能发往 endpoints.investing.com；旧实现把 cookie 设到 .investing.com 全域，
+反而会被 Cloudflare 视为伪造凭据并返回 403。
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ import logging
 import re
 from collections import defaultdict
 from datetime import date as date_t, datetime, timezone, timedelta
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -134,6 +137,8 @@ _REQUEST_COUNTRY_IDS = (
 
 # 桌面端用户从浏览器导出的 CF 绕过 cookie 文件（相对数据目录）
 _COOKIE_FILE_NAME = "investing_cookies.json"
+# cf_clearance 绑定签发时的站点；只允许它回到 cn.investing.com，绝不发给 API 域。
+_COOKIE_DOMAIN = "cn.investing.com"
 
 
 # ---------------------------------------------------------------------------
@@ -177,11 +182,17 @@ class _CffiSession:
     同步 API + 模拟 Chrome TLS 指纹，是目前唯一能稳定过 Cloudflare 的方案。
     """
 
-    def __init__(self, headers: dict[str, str], timeout: int, cookies: dict[str, str]) -> None:
+    def __init__(
+        self,
+        headers: dict[str, str],
+        timeout: int,
+        cookies: dict[str, str] | None = None,
+    ) -> None:
         self._sess = _cffi_requests.Session(impersonate="chrome120")
         self._timeout = timeout
-        for k, v in cookies.items():
-            self._sess.cookies.set(k, v, domain=".investing.com")
+        for k, v in (cookies or {}).items():
+            # 必须 host-scoped：cf_clearance 对签发域有效，发到 API 域会触发 403。
+            self._sess.cookies.set(k, v, domain=_COOKIE_DOMAIN)
         self._sess.headers.update(headers)
 
     async def get(self, url: str, params: list[tuple[str, str]]) -> _Resp:
@@ -525,11 +536,17 @@ class InvestingSource(Source):
 
     @staticmethod
     def _load_cookies(cookies: dict[str, str] | None = None) -> dict[str, str] | None:
-        """优先用调用方传入的 cookie；否则读 data/investing_cookies.json（用户导出）。"""
+        """优先用调用方传入的 cookie；否则在候选位置里挑最新的那份。
+
+        候选见 ``cookie_candidates()``：打包态的数据目录是
+        ``%APPDATA%\\TT Calendar\\data``，但大家习惯把导出的文件丢到 exe 旁边的
+        ``data\\``（便携版思维）。旧实现只认前者，于是「明明换了新 cookie、刷新
+        还是 403」——文件在那儿，代码没去看。现在两处都看，谁新用谁。
+        """
         if cookies:
             return cookies
-        path = cfg.DATA_DIR / _COOKIE_FILE_NAME
-        if not path.exists():
+        path = cookie_path()
+        if path is None:
             return None
         try:
             loaded = load_cookies_file(str(path))
@@ -539,8 +556,14 @@ class InvestingSource(Source):
             return None
 
     async def _get_session(self, cookies: dict[str, str] | None = None) -> Any:
-        if cookies and _HAS_CFFI:
-            log.info("investing: using curl_cffi (chrome120) with %d cookies", len(cookies))
+        if _HAS_CFFI:
+            # 浏览器 TLS 指纹才是过 CF 的关键；没有 cookie 也要用 curl_cffi，
+            # 否则会退回 httpx 的 Python 指纹，被边缘直接 403。
+            log.info(
+                "investing: using curl_cffi (chrome120), %d cookies scoped to %s",
+                len(cookies or {}),
+                _COOKIE_DOMAIN,
+            )
             self._session = _CffiSession(
                 dict(_HEADERS),
                 _TIMEOUT_SECONDS,
@@ -548,14 +571,15 @@ class InvestingSource(Source):
             )
         else:
             if cookies:
-                log.info("investing: cookie provided but curl_cffi unavailable, falling back to httpx")
+                log.warning(
+                    "investing: curl_cffi unavailable; ignoring %d cookies "
+                    "(httpx cannot impersonate Chrome TLS)",
+                    len(cookies),
+                )
             self._session = _HttpxSession(
                 dict(_HEADERS),
                 _TIMEOUT_SECONDS,
             )
-            if cookies:
-                for k, v in cookies.items():
-                    self._session._client.cookies.set(k, v)
         return self._session
 
     async def close(self) -> None:
@@ -736,22 +760,70 @@ def _is_cf_block(resp: _Resp) -> bool:
     return False
 
 
+def cookie_candidates() -> list[Path]:
+    """cookie 文件可能被放在哪些位置（按查找顺序，去重）。
+
+    1. ``<数据目录>/investing_cookies.json``——安装版是
+       ``%APPDATA%\\TT Calendar\\data``，源码态是仓库 ``data/``
+    2. ``<exe 所在目录>/data/investing_cookies.json``——便携版/习惯性摆放
+
+    两处都存在的场景真实发生过：用户按旧文档把新 cookie 丢到 exe 旁，
+    应用却只读 %APPDATA% 里那份 11 月的旧文件，于是「换了 cookie 还是 403」。
+    """
+    out: list[Path] = []
+    seen: set[str] = set()
+    for base in (cfg.DATA_DIR, cfg.PROJECT_ROOT / "data"):
+        p = base / _COOKIE_FILE_NAME
+        key = str(p).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(p)
+    return out
+
+
+def cookie_path() -> Path | None:
+    """实际会被读取的 cookie 文件：候选里存在且最新的那份；都没有则 None。"""
+    existing = [p for p in cookie_candidates() if p.is_file()]
+    if not existing:
+        return None
+    return max(existing, key=lambda p: p.stat().st_mtime)
+
+
+def _cookie_hint() -> str:
+    """告诉用户在哪儿找/放 cookie，含路径与实际读取的那份的时间。"""
+    path = cookie_path()
+    if path is None:
+        places = " 或 ".join(str(p) for p in cookie_candidates())
+        return f"没有找到 cookie 文件，请导出到 {places} 后重试。"
+    try:
+        ts = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+    except OSError:
+        ts = "未知时间"
+    return f"当前读取的 cookie 文件：{path}（{ts} 更新）。"
+
+
 def _cf_block_hint(last_status: int) -> str:
     """CF 拦截的全量失败提示：强调这是临时状态、允许重试，而非"永久失败"。
 
     每次点「立即更新」都是全新尝试，失败不会把后续刷新锁死；
     这里按最后状态码区分 429（限流）/ 403（人机验证）给出对应建议。
+    提示里带上实际读取的 cookie 路径：路径不对时用户一眼能看出来，
+    不必再靠「我明明换了 cookie」猜。
     """
     if last_status == 429:
         return (
             "当前被 Cloudflare 限流（429，短时间内请求偏多）。这是临时状态、可以重试："
             "请等 5-15 分钟后再点「立即更新」，通常会自行恢复；cookie 大概率没过期，"
-            "不必立刻重新导出。"
+            "不必立刻重新导出。" + _cookie_hint()
         )
     return (
-        "被 Cloudflare 人机验证拦截（403）。一般是临时拦截：先过几分钟再点「立即更新」重试；"
-        "如果反复尝试都失败，再用 Edge 打开 https://cn.investing.com/economic-calendar "
-        "重新导出 cookie 到 data/investing_cookies.json。"
+        "被 Cloudflare 人机验证拦截（403）。先按顺序试："
+        "① 等 5-15 分钟再点「立即更新」（临时拦截居多）；"
+        "② 仍失败就用 Edge 打开 https://cn.investing.com/economic-calendar 过验证，"
+        "导出 cookie 覆盖下面这个文件；"
+        "③ 覆盖后直接点「立即更新」即可生效，不用重启应用。"
+        f"{_cookie_hint()}"
     )
 
 
