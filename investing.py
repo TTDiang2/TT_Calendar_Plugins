@@ -765,14 +765,21 @@ def cookie_candidates() -> list[Path]:
 
     1. ``<数据目录>/investing_cookies.json``——安装版是
        ``%APPDATA%\\TT Calendar\\data``，源码态是仓库 ``data/``
-    2. ``<exe 所在目录>/data/investing_cookies.json``——便携版/习惯性摆放
+    2. ``<sidecar 所在目录>/data/...`` 与 ``<其父目录>/data/...``——便携版/习惯性摆放。
+       打包后后端 exe 在 ``<应用根>\\tt-calendar-backend\\``，所以「exe 旁边」
+       其实是它的父目录，两个都要看。
 
-    两处都存在的场景真实发生过：用户按旧文档把新 cookie 丢到 exe 旁，
+    两处都存在的场景真实发生过：用户按旧文档把新 cookie 丢到应用根目录的 data\\，
     应用却只读 %APPDATA% 里那份 11 月的旧文件，于是「换了 cookie 还是 403」。
     """
+    roots = (
+        cfg.DATA_DIR,
+        cfg.PROJECT_ROOT / "data",
+        cfg.PROJECT_ROOT.parent / "data",
+    )
     out: list[Path] = []
     seen: set[str] = set()
-    for base in (cfg.DATA_DIR, cfg.PROJECT_ROOT / "data"):
+    for base in roots:
         p = base / _COOKIE_FILE_NAME
         key = str(p).lower()
         if key in seen:
